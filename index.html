@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coin Collector</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .screen {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            display: none;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background: #d97706;
+            transform: scale(1.05);
+        }
+        
+        #gameScreen {
+            background: transparent;
+        }
+        
+        canvas {
+            border: 5px solid white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: #87ceeb;
+        }
+        
+        .info {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        
+        .controls {
+            background: rgba(0,0,0,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            color: #555;
+        }
+        
+        .coin {
+            color: #f59e0b;
+            font-size: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div id="menuScreen" class="screen active">
+        <h1>💰 Coin Collector</h1>
+        <p style="color: #666; font-size: 18px; margin-bottom: 30px;">Collect as many coins as you can!</p>
+        <button onclick="startGame()">🎮 Start Game</button>
+        
+        <div class="controls">
+            <p><strong>Controls:</strong></p>
+            <p>Arrow Keys or WASD to move</p>
+            <p>Collect coins and avoid bombs!</p>
+            <p style="margin-top: 10px;">⭐ Gold coins = 10 points</p>
+            <p>🪙 Silver coins = 5 points</p>
+            <p>💣 Bombs = Game Over!</p>
+        </div>
+        
+        <p style="margin-top: 20px; color: #f59e0b; font-size: 20px; font-weight: bold;">
+            High Score: <span id="highScore">0</span>
+        </p>
+    </div>
+    
+    <div id="gameScreen" class="screen">
+        <div class="info">
+            Score: <span id="score">0</span> | Lives: <span id="lives">❤️❤️❤️</span>
+        </div>
+        <canvas id="canvas" width="600" height="600"></canvas>
+    </div>
+    
+    <div id="gameOverScreen" class="screen">
+        <h1>🎮 Game Over!</h1>
+        <p style="font-size: 32px; color: #f59e0b; margin: 20px 0;">
+            Final Score: <span id="finalScore">0</span>
+        </p>
+        <p style="font-size: 20px; color: #666;">
+            High Score: <span id="finalHighScore">0</span>
+        </p>
+        <button onclick="showMenu()">🏠 Main Menu</button>
+        <button onclick="startGame()">🔄 Play Again</button>
+    </div>
+
+    <script>
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        
+        var player = { x: 300, y: 500, size: 30, speed: 5 };
+        var items = [];
+        var score = 0;
+        var lives = 3;
+        var highScore = 0;
+        var running = false;
+        var keys = {};
+        var frameCount = 0;
+        
+        document.onkeydown = function(e) { 
+            keys[e.key] = true;
+            e.preventDefault();
+        };
+        document.onkeyup = function(e) { 
+            keys[e.key] = false; 
+        };
+        
+        function startGame() {
+            player = { x: 300, y: 500, size: 30, speed: 5 };
+            items = [];
+            score = 0;
+            lives = 3;
+            running = true;
+            frameCount = 0;
+            
+            document.getElementById('menuScreen').classList.remove('active');
+            document.getElementById('gameOverScreen').classList.remove('active');
+            document.getElementById('gameScreen').classList.add('active');
+            
+            updateDisplay();
+            loop();
+        }
+        
+        function showMenu() {
+            document.getElementById('gameOverScreen').classList.remove('active');
+            document.getElementById('menuScreen').classList.add('active');
+        }
+        
+        function updateDisplay() {
+            document.getElementById('score').textContent = score;
+            var hearts = '';
+            for (var i = 0; i < lives; i++) {
+                hearts += '❤️';
+            }
+            document.getElementById('lives').textContent = hearts;
+        }
+        
+        function drawPlayer() {
+            ctx.fillStyle = '#3b82f6';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(player.x - 8, player.y - 5, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x + 8, player.y - 5, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(player.x - 8, player.y - 5, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x + 8, player.y - 5, 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y + 5, 8, 0, Math.PI);
+            ctx.stroke();
+        }
+        
+        function drawCoin(x, y, type) {
+            if (type === 'gold') {
+                ctx.fillStyle = '#fbbf24';
+                ctx.strokeStyle = '#f59e0b';
+            } else {
+                ctx.fillStyle = '#d1d5db';
+                ctx.strokeStyle = '#9ca3af';
+            }
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            ctx.fillStyle = type === 'gold' ? '#f59e0b' : '#6b7280';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('$', x, y);
+        }
+        
+        function drawBomb(x, y) {
+            ctx.fillStyle = '#1f2937';
+            ctx.beginPath();
+            ctx.arc(x, y, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y - 15);
+            ctx.lineTo(x - 5, y - 25);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#fbbf24';
+            ctx.beginPath();
+            ctx.arc(x - 5, y - 25, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function spawnItem() {
+            var rand = Math.random();
+            var type = '';
+            
+            if (rand < 0.15) {
+                type = 'bomb';
+            } else if (rand < 0.4) {
+                type = 'gold';
+            } else {
+                type = 'silver';
+            }
+            
+            items.push({
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: -20,
+                type: type,
+                speed: 2 + Math.random() * 2
+            });
+        }
+        
+        function checkCollision(item) {
+            var dx = player.x - item.x;
+            var dy = player.y - item.y;
+            var distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < player.size + 15;
+        }
+        
+        function loop() {
+            if (!running) return;
+            
+            ctx.fillStyle = '#87ceeb';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#90EE90';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+            
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                player.x -= player.speed;
+            }
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                player.x += player.speed;
+            }
+            if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+                player.y -= player.speed;
+            }
+            if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+                player.y += player.speed;
+            }
+            
+            if (player.x < player.size) player.x = player.size;
+            if (player.x > canvas.width - player.size) player.x = canvas.width - player.size;
+            if (player.y < player.size) player.y = player.size;
+            if (player.y > canvas.height - player.size) player.y = canvas.height - player.size;
+            
+            frameCount++;
+            if (frameCount % 60 === 0) {
+                spawnItem();
+            }
+            
+            for (var i = items.length - 1; i >= 0; i--) {
+                items[i].y += items[i].speed;
+                
+                if (items[i].type === 'gold') {
+                    drawCoin(items[i].x, items[i].y, 'gold');
+                } else if (items[i].type === 'silver') {
+                    drawCoin(items[i].x, items[i].y, 'silver');
+                } else {
+                    drawBomb(items[i].x, items[i].y);
+                }
+                
+                if (checkCollision(items[i])) {
+                    if (items[i].type === 'gold') {
+                        score += 10;
+                        items.splice(i, 1);
+                        updateDisplay();
+                    } else if (items[i].type === 'silver') {
+                        score += 5;
+                        items.splice(i, 1);
+                        updateDisplay();
+                    } else if (items[i].type === 'bomb') {
+                        lives--;
+                        items.splice(i, 1);
+                        updateDisplay();
+                        
+                        if (lives <= 0) {
+                            endGame();
+                            return;
+                        }
+                    }
+                } else if (items[i].y > canvas.height + 20) {
+                    items.splice(i, 1);
+                }
+            }
+            
+            drawPlayer();
+            
+            requestAnimationFrame(loop);
+        }
+        
+        function endGame() {
+            running = false;
+            
+            if (score > highScore) {
+                highScore = score;
+            }
+            
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalHighScore').textContent = highScore;
+            document.getElementById('highScore').textContent = highScore;
+            
+            document.getElementById('gameScreen').classList.remove('active');
+            document.getElementById('gameOverScreen').classList.add('active');
+        }
+    </script>
+</body>
+</html>
